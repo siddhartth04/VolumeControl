@@ -1,130 +1,289 @@
 package com.siddharth.volumecontrol
 
 import android.app.Activity
-import android.os.Bundle
-import android.media.AudioManager
-import android.view.Gravity
-import android.widget.*
-import android.graphics.Color
 import android.content.Context
+import android.media.AudioManager
+import android.os.Bundle
+import android.graphics.Color
+import android.view.Gravity
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.SeekBar
+import android.widget.TextView
 
 class MainActivity : Activity() {
-    private lateinit var audio: AudioManager
-    private val streams = listOf(
-        Triple(AudioManager.STREAM_MUSIC, "🔊  Media",  "Media volume"),
-        Triple(AudioManager.STREAM_RING,  "🔔  Ring",   "Ring volume"),
-        Triple(AudioManager.STREAM_ALARM, "⏰  Alarm",  "Alarm volume")
-    )
+
+    private lateinit var audioManager: AudioManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        val scroll = ScrollView(this)
-        val box = LinearLayout(this).apply {
+        audioManager =
+            getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        createUI()
+    }
+
+    private fun createUI() {
+
+        val scrollView = ScrollView(this)
+
+        val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(36, 48, 36, 36)
+            setPadding(dp(24), dp(40), dp(24), dp(30))
             setBackgroundColor(Color.WHITE)
         }
 
         val title = TextView(this).apply {
             text = "Volume Control"
             textSize = 28f
-            setTextColor(Color.rgb(25,25,25))
-            setPadding(0, 0, 0, 8)
+            setTextColor(Color.BLACK)
         }
-        box.addView(title)
+
+        container.addView(
+            title,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         val subtitle = TextView(this).apply {
-            text = "Use this instead of the broken physical volume buttons."
+            text = "Control your phone volume without the physical buttons."
             textSize = 15f
             setTextColor(Color.DKGRAY)
-            setPadding(0, 0, 0, 28)
-        }
-        box.addView(subtitle)
-
-        streams.forEach { (stream, label, desc) ->
-            addSlider(box, stream, label)
         }
 
-        val buttons = LinearLayout(this).apply {
+        val subtitleParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        subtitleParams.setMargins(0, dp(8), 0, dp(25))
+
+        container.addView(subtitle, subtitleParams)
+
+        addVolumeSlider(
+            container,
+            AudioManager.STREAM_MUSIC,
+            "🔊  Media"
+        )
+
+        addVolumeSlider(
+            container,
+            AudioManager.STREAM_RING,
+            "🔔  Ring"
+        )
+
+        addVolumeSlider(
+            container,
+            AudioManager.STREAM_ALARM,
+            "⏰  Alarm"
+        )
+
+        val buttonLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, 28, 0, 0)
         }
 
-        val minus = Button(this).apply {
+        val minusButton = Button(this).apply {
             text = "−"
-            textSize = 24f
-            setOnClickListener { changeMedia(-1) }
-        }
-        val plus = Button(this).apply {
-            text = "+"
-            textSize = 24f
-            setOnClickListener { changeMedia(1) }
-        }
-        buttons.addView(minus, LinearLayout.LayoutParams(0, 60.dp(), 1f).apply { setMargins(0,0,12.dp(),0) })
-        buttons.addView(plus, LinearLayout.LayoutParams(0, 60.dp(), 1f))
+            textSize = 22f
 
-        box.addView(buttons)
+            setOnClickListener {
+                changeMediaVolume(-1)
+            }
+        }
+
+        val plusButton = Button(this).apply {
+            text = "+"
+            textSize = 22f
+
+            setOnClickListener {
+                changeMediaVolume(1)
+            }
+        }
+
+        val buttonParams = LinearLayout.LayoutParams(
+            0,
+            dp(60),
+            1f
+        )
+
+        buttonParams.setMargins(0, dp(15), dp(8), 0)
+
+        buttonLayout.addView(
+            minusButton,
+            buttonParams
+        )
+
+        val plusParams = LinearLayout.LayoutParams(
+            0,
+            dp(60),
+            1f
+        )
+
+        plusParams.setMargins(
+            dp(8),
+            dp(15),
+            0,
+            0
+        )
+
+        buttonLayout.addView(
+            plusButton,
+            plusParams
+        )
+
+        container.addView(buttonLayout)
 
         val note = TextView(this).apply {
-            text = "Tip: Keep this app on your home screen for quick access."
+            text = "Tip: Add this app to your home screen for quick access."
             textSize = 14f
             setTextColor(Color.GRAY)
-            setPadding(0, 28, 0, 0)
         }
-        box.addView(note)
 
-        scroll.addView(box)
-        setContentView(scroll)
+        val noteParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        noteParams.setMargins(
+            0,
+            dp(25),
+            0,
+            0
+        )
+
+        container.addView(note, noteParams)
+
+        scrollView.addView(container)
+
+        setContentView(scrollView)
     }
 
-    private fun addSlider(parent: LinearLayout, stream: Int, label: String) {
-        val row = LinearLayout(this).apply {
+    private fun addVolumeSlider(
+        parent: LinearLayout,
+        streamType: Int,
+        title: String
+    ) {
+
+        val section = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 14, 0, 8)
         }
 
-        val text = TextView(this).apply {
+        val label = TextView(this).apply {
             textSize = 18f
-            setTextColor(Color.rgb(35,35,35))
+            setTextColor(Color.BLACK)
         }
-        row.addView(text)
 
-        val max = audio.getStreamMaxVolume(stream)
-        val slider = SeekBar(this).apply {
-            max = max
-            progress = audio.getStreamVolume(stream)
+        section.addView(label)
+
+        val maxVolume =
+            audioManager.getStreamMaxVolume(streamType)
+
+        val currentVolume =
+            audioManager.getStreamVolume(streamType)
+
+        val seekBar = SeekBar(this).apply {
+            max = maxVolume
+            progress = currentVolume
         }
-        row.addView(slider)
 
-        fun updateLabel() {
-            val pct = if (max == 0) 0 else (slider.progress * 100 / max)
-            text.text = "$label    $pct%"
+        section.addView(seekBar)
+
+        fun updateLabel(progress: Int) {
+
+            val percentage =
+                if (maxVolume > 0) {
+                    progress * 100 / maxVolume
+                } else {
+                    0
+                }
+
+            label.text =
+                "$title    $percentage%"
         }
-        updateLabel()
 
-        slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                if (fromUser) audio.setStreamVolume(stream, p, 0)
-                updateLabel()
+        updateLabel(currentVolume)
+
+        seekBar.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+
+                    if (fromUser) {
+
+                        audioManager.setStreamVolume(
+                            streamType,
+                            progress,
+                            0
+                        )
+                    }
+
+                    updateLabel(progress)
+                }
+
+                override fun onStartTrackingTouch(
+                    seekBar: SeekBar?
+                ) {
+                }
+
+                override fun onStopTrackingTouch(
+                    seekBar: SeekBar?
+                ) {
+                }
             }
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
+        )
 
-        parent.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
-            bottomMargin = 12.dp()
-        })
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        params.setMargins(
+            0,
+            dp(10),
+            0,
+            dp(20)
+        )
+
+        parent.addView(section, params)
     }
 
-    private fun changeMedia(direction: Int) {
-        val current = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audio.setStreamVolume(AudioManager.STREAM_MUSIC, (current + direction).coerceIn(0, max), 0)
-        recreate()
+    private fun changeMediaVolume(direction: Int) {
+
+        val current =
+            audioManager.getStreamVolume(
+                AudioManager.STREAM_MUSIC
+            )
+
+        val max =
+            audioManager.getStreamMaxVolume(
+                AudioManager.STREAM_MUSIC
+            )
+
+        val newVolume =
+            (current + direction).coerceIn(0, max)
+
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            newVolume,
+            0
+        )
+
+        createUI()
     }
 
-    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int {
+
+        return (
+            value * resources.displayMetrics.density
+        ).toInt()
+    }
 }
